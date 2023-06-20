@@ -266,9 +266,9 @@ def ran(wal):
     ad = aka(wal)
     print(ad[0])
     #отправка с биржи и ожидание денег
-    #transfer.okx_withdraw(ad[0],1,2)
+    transfer.okx_withdraw(ad[0],1,2)
     #ожидаение денег
-    #time_m(ad)
+    time_m(ad)
     #начала старгейта
     while len(sp) != 0:
         l = random.choice(sp)
