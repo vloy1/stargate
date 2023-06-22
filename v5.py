@@ -35,7 +35,7 @@ avax = {
     'token': 1000000,
     '1':2,
     '2':2,
-    'gas': 400000
+    'gas': 405800
 }
 
 bsc = {
@@ -66,21 +66,35 @@ def adress_birgh():
 
 def wallett():
     try:
-        ish = open('wal.txt','r').readlines()
         private = open('wal.txt','r').read().splitlines()
         wallet = private[00]
-        del ish[00]
-        with open("wal.txt", "w") as file:
-            file.writelines(ish)
         return wallet
     except:
         print('Кошельки кончились')
+
+def wallett_del():
+    ish = open('wal.txt','r').readlines()
+    del ish[00]
+    with open("wal.txt", "w") as file:
+        file.writelines(ish)
+
+def res_balance(set,adres):
+    w3 = Web3(Web3.HTTPProvider(set['RPC'])) 
+    eth_balance = w3.eth.get_balance(adres)
+    if eth_balance > 0:
+        return 1
+    else:
+        return 0
 
 def aka(privat):
     w3 = Web3(Web3.HTTPProvider('https://arb1.arbitrum.io/rpc'))
     account = w3.eth.account.from_key(privat)
     adress = account.address
-    return adress,privat
+    nativ = res_balance(arb,adress) +res_balance(avax,adress)+res_balance(bsc,adress)
+    if nativ == 3:
+        return adress,privat
+    else:
+        return 0,0
 
 def status(tx_hash,set1):
     time.sleep(15)
@@ -88,10 +102,9 @@ def status(tx_hash,set1):
     try:
         status_ = w3.eth.get_transaction_receipt(tx_hash)
         status  = status_["status"]
-        print(status)
-        return 1
+        return status
     except:
-        print(0)
+        print("ошибка")
         return 0 
 
 def apruve(set,token,contract,ak): #работает 
@@ -102,23 +115,44 @@ def apruve(set,token,contract,ak): #работает
         apruv_contrakt = w3.eth.contract(address=apruv_adres_token,abi=token['abi']) 
         amount_in = apruv_contrakt.functions.balanceOf(ak[0]).call()
         if amount_in == 0 :
-            time.sleep(14)
-            amount_in = apruv_contrakt.functions.balanceOf(ak[0]).call()
-        nonce = w3.eth.get_transaction_count(ak[0])
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-        gas_price = w3.eth.gas_price
-        tx1 = apruv_contrakt.functions.approve(
-            apruv_adres_most,
-            amount_in
-        ).build_transaction({
-            'from': ak[0],
-            'gas': set['gas'],
-            'gasPrice': gas_price,
-            'nonce': nonce,
-        })
-        signed_txn = w3.eth.account.sign_transaction(tx1, private_key=ak[1])
-        x_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        #status(x_hash)
+            while True:
+                time.sleep(10)
+                amount_in = apruv_contrakt.functions.balanceOf(ak[0]).call()
+                if amount_in != 0:
+                    nonce = w3.eth.get_transaction_count(ak[0])
+                    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                    gas_price = w3.eth.gas_price
+                    tx1 = apruv_contrakt.functions.approve(
+                        apruv_adres_most,
+                        amount_in
+                    ).build_transaction({
+                        'from': ak[0],
+                        'gas': set['gas'],
+                        'gasPrice': gas_price,
+                        'nonce': nonce,
+                    })
+                    signed_txn = w3.eth.account.sign_transaction(tx1, private_key=ak[1])
+                    x_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+                    #status(x_hash)
+                    time.sleep(5)
+                    break
+        else:
+            nonce = w3.eth.get_transaction_count(ak[0])
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            gas_price = w3.eth.gas_price
+            tx1 = apruv_contrakt.functions.approve(
+                apruv_adres_most,
+                amount_in
+            ).build_transaction({
+                'from': ak[0],
+                'gas': set['gas'],
+                'gasPrice': gas_price,
+                'nonce': nonce,
+            })
+            signed_txn = w3.eth.account.sign_transaction(tx1, private_key=ak[1])
+            x_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            #status(x_hash)
+            time.sleep(5)
     except: 
         print('Ошибка апрува')
 
@@ -143,13 +177,21 @@ def stargate(ak): ##### gotov, no проверка баланса
         r2 = random.choice(rand)
         tx2 = st(r1,r2,ak)
         if tx2 == 1:
-            st(r2,arb,ak)
+            tx3 = st(r2,arb,ak)
+            if tx3 == 1:
+                return True
+            else:
+                False
+        else:
+            return False
+    else:
+        return False
+    
 
     # система рандомизации  
 def st(set1,set2,ak):
     apruve(set1,set1['USDT'],set1['stargate'],ak)
     time.sleep(20)
-    mon = random.randrange(1,50)/100
     w3 = Web3(Web3.HTTPProvider(set1['RPC'])) 
     adres_token = Web3.to_checksum_address(set1['USDT']['adress']) 
     contrakt = w3.eth.contract(address=adres_token,abi=set1['USDT']['abi']) 
@@ -159,14 +201,16 @@ def st(set1,set2,ak):
         time.sleep(15)
         balanse = contrakt.functions.balanceOf(ak[0]).call()
         balanse = balanse / (10**set1['USDT']['decimal'])
-    if mon > balanse:
-        mon = balanse
+        if balanse == 0:
+            time.sleep(20)
+            balanse = contrakt.functions.balanceOf(ak[0]).call()
+            balanse = balanse / (10**set1['USDT']['decimal'])
     w3 = Web3(Web3.HTTPProvider(set1['RPC']))
     contractToken = Web3.to_checksum_address(set1['stargate'])
     contract = w3.eth.contract(address=contractToken, abi=abi_stargate)
     nonce = w3.eth.get_transaction_count(ak[0])
     gas_price = w3.eth.gas_price
-    monet = int(set1['token']*mon)
+    monet = int(set1['token']*balanse)
     monet_min = int(monet *0.95)
     fees = contract.functions.quoteLayerZeroFee(
         set2['nomer'],
@@ -202,14 +246,19 @@ def st(set1,set2,ak):
     signed_txn = w3.eth.account.sign_transaction(tx, private_key=ak[1])
     try:
         tx_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        time.sleep(5)
         f = status(tx_hash,set1)
         a1 = set1['name']
-        a2 = set2['name']
-        print(ak[0], f'выполнена перевод {mon} USDT из {a1} в {a2}')
-        return f
+        if f != 0 :
+            a2 = set2['name']
+            print(f'выполнен перевод {balanse} USDT из {a1} в {a2} , {f}')
+            return f
+        else:
+            ww(ak,False,set1)
+            return f 
     except:
         print(f'{set1} нехватка газа')
-        print(ak[0], f'выполнена перевод {mon} USDT из {a1} в {a2}')
+        print(f'выполнен перевод {balanse} USDT из {a1} в {a2}')
         return 0 
 
 def gas(set): ##### xz
@@ -222,33 +271,41 @@ def gas(set): ##### xz
         else: 
             break
 #вывод на биржу 
-def ww(ak):
-    apruve(arb,arb['USDT'],arb['USDT']['adress'],ak)
-    time.sleep(20)
-    w3 = Web3(Web3.HTTPProvider(arb['RPC'])) 
-    apruv_adres_token = Web3.to_checksum_address(arb['USDT']['adress']) 
-    apruv_contrakt = w3.eth.contract(address=apruv_adres_token,abi=arb['USDT']['abi']) 
+def ww(ak,apuve=True,seti=arb):
+    if apuve == True:
+        apruve(seti,seti['USDT'],seti['USDT']['adress'],ak)
+        time.sleep(20)
+    w3 = Web3(Web3.HTTPProvider(seti['RPC'])) 
+    apruv_adres_token = Web3.to_checksum_address(seti['USDT']['adress']) 
+    apruv_contrakt = w3.eth.contract(address=apruv_adres_token,abi=seti['USDT']['abi']) 
     amount_in = apruv_contrakt.functions.balanceOf(ak[0]).call()
-    nonce = w3.eth.get_transaction_count(ak[0])
-    adress_br = adress_birgh()
-    apruv_br = Web3.to_checksum_address(adress_br) 
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-    gas_price = w3.eth.gas_price
-    tx1 = apruv_contrakt.functions.transfer(
-        apruv_br,
-        amount_in
-    ).build_transaction({
-        'from': ak[0],
-        'gas': 400000,
-        'gasPrice': gas_price,
-        'nonce': nonce,
-    })
-    try:
-        signed_txn = w3.eth.account.sign_transaction(tx1, private_key=ak[1])
-        x_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-        print(f'Отправил на биржу {amount_in}')
-    except:
-        print(f'{ak[0]} , не хватило газа')
+    if amount_in != 0 :
+        nonce = w3.eth.get_transaction_count(ak[0])
+        adress_br = adress_birgh()
+        apruv_br = Web3.to_checksum_address(adress_br) 
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        gas_price = w3.eth.gas_price
+        tx1 = apruv_contrakt.functions.transfer(
+            apruv_br,
+            amount_in
+        ).build_transaction({
+            'from': ak[0],
+            'gas': 400000,
+            'gasPrice': gas_price,
+            'nonce': nonce,
+        })
+        try:
+            signed_txn = w3.eth.account.sign_transaction(tx1, private_key=ak[1])
+            x_hash = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+            print(f'Отправил на биржу {amount_in/10**6}')
+            return True
+        except:
+            print(f'{ak[0]} , не хватило газа')
+            return False
+    else:
+        s = seti['name']
+        print(f'{ak[0]} в сети {s}  пустой')
+        return False
     
 def time_m(ad):
     while True:
@@ -264,28 +321,32 @@ def time_m(ad):
 def ran(wal):
     sp = [stargate]
     ad = aka(wal)
-    print(ad[0])
-    #отправка с биржи и ожидание денег
-    transfer.okx_withdraw(ad[0],1,2)
-    #ожидаение денег
-    time_m(ad)
-    #начала старгейта
-    while len(sp) != 0:
-        l = random.choice(sp)
-        l(ad) # передаются разные параметры
-        sp.remove(l)
-    #вывод на биржу 
-    ww(ad)
+    if ad[0] != 0:
+        print('------------------------------------------')
+        print(ad[0])
+        #отправка с биржи и ожидание денег
+        transfer.okx_withdraw(ad[0],10,12)
+        #ожидаение денег
+        time_m(ad)
+        #начала старгейта
+        while len(sp) != 0:
+            l = random.choice(sp)
+            TorF = l(ad)
+            sp.remove(l)
+        #вывод на биржу 
+        if TorF == True:
+            ww(ad)
+        print('------------------------------------------')
+    else:
+        print(f'{ad[0]} нет нативного токена')
     
 def main():
     while True:
         #try:
             a = wallett()
             ran(a)
+            wallett_del()
         #except:
             #break
 
 main()
-
-print(1)
-
