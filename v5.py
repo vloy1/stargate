@@ -1,5 +1,4 @@
-from web3 import Web3, AsyncHTTPProvider
-from web3.eth import AsyncEth
+from web3 import Web3
 import time
 import random
 from web3.middleware import geth_poa_middleware
@@ -155,26 +154,16 @@ def apruve(set,token,contract,ak): #работает
             time.sleep(5)
     except: 
         print('Ошибка апрува')
-
-def gas(set): ##### xz
-    while True:
-        web3 = Web3(Web3.HTTPProvider(set['RPC']))
-        gas_price = web3.eth.gas_price
-        gwei_gas_price = web3.from_wei(gas_price, 'gwei')
-        if gwei_gas_price > set['gas']:
-            time.sleep(20)
-        else: 
-            break
         
 
 def stargate(ak): ##### gotov, no проверка баланса
     rand = [bsc,avax]
     r1 = random.choice(rand)
+    rand.remove(r1)
+    r2 = random.choice(rand)
     #gas(arb)
     tx1 = st(arb,r1,ak)
     if tx1 == 1:
-        rand.remove(r1)
-        r2 = random.choice(rand)
         tx2 = st(r1,r2,ak)
         if tx2 == 1:
             tx3 = st(r2,arb,ak)
@@ -254,24 +243,14 @@ def st(set1,set2,ak):
             print(f'выполнен перевод {balanse} USDT из {a1} в {a2} , {f}')
             return f
         else:
-            ww(ak,False,set1)
             return f 
     except:
         print(f'{set1} нехватка газа')
         print(f'выполнен перевод {balanse} USDT из {a1} в {a2}')
         return 0 
 
-def gas(set): ##### xz
-    while True:
-        web3 = Web3(Web3.HTTPProvider(set['RPC']))
-        gas_price = web3.eth.gas_price
-        gwei_gas_price = web3.from_wei(gas_price, 'gwei')
-        if gwei_gas_price > set['gas']:
-            time.sleep(20)
-        else: 
-            break
 #вывод на биржу 
-def ww(ak,apuve=True,seti=arb):
+def ww(ak,seti=arb,apuve=True):
     if apuve == True:
         apruve(seti,seti['USDT'],seti['USDT']['adress'],ak)
         time.sleep(20)
